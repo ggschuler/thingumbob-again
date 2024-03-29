@@ -78,3 +78,35 @@ def exclude_additional_joints(coords, joints_index):
     (list): New list containing the reduced set of joints only.
     """
     return [np.delete(coord, joints_index, axis=0) for coord in coords]
+
+def find_nearest_frames_with_valid_data(data, current_frame, joint):
+    """
+    This function finds the required 4 adjacent datapoints required 
+    for Piecewise Cubic Hermite Interpolation Polynomial.
+
+    Parameters:
+    data (np.array): Numpy array of coordinates. Should be (frames, joints=13, xy-coordinates=2)-shaped.
+    
+    current_frame (int): The frame index whose datapoint in the specified @joint should be interpolated.
+
+    joint(int): The joint index whose datapoint in the specified @current_frame should be interpolated.
+
+    Returns: 
+    (list): A list of the 4 adjacent points to the target-datapoint.
+    """
+    left_frame, right_frame = [], []
+    left_count, right_count = 0, 0 
+    for frame in range(current_frame - 1, -1, -1):
+        if not np.isnan(data[frame, joint]).any():
+            left_frame.append(frame)
+            left_count += 1
+            if left_count >= 2:
+                break
+    for frame in range(current_frame + 1, data.shape[0]):
+        if not np.isnan(data[frame, joint]).any():
+            right_frame.append(frame)
+            right_count += 1
+            if right_count >= 2:
+                break
+    
+    return left_frame[::-1], right_frame

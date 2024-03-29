@@ -1,6 +1,7 @@
 import pandas as pd
 from read_data import save_paths
-from utils import exclude_additional_joints
+from scipy.interpolate import PchipInterpolator
+from utils import exclude_additional_joints, find_nearest_frames_with_valid_data
 import os
 import numpy as np
 
@@ -20,7 +21,7 @@ def main():
         a = standardize_joint_number(dataset, ref)
         b = remove_zeroes(a, ref)
         c = remove_low_CIs(b)
-        #interpolate_nan_values(dataset)
+        d = interpolate_nan_values(c)
         #check_interpolate(dataset)
         #rescale(dataset)
         #pivot(dataset)
@@ -108,6 +109,43 @@ def remove_low_CIs(dataset):
     
     
     mod_data = mod_data.dropna(subset=['coordinates'])
+
+def interpolate_nan_values(dataset):
+    """
+    This function remove pose data coordinates where the associated confidence score is below a threshold.
+
+    Parameters:
+    dataset (pd.dataframe): The dataframe containing the dataset's data.
+    
+    Returns: 
+    (pd.dataframe): The modified datataset, containing the remaining pose data for each sample in the dataset.
+    """
+    mod_dataset = dataset.copy()
+    for index,row  in mod_dataset.iterrows():
+        coords = np.array(row['coordinates'])
+        for joint in range(coords.shape[1]):
+            for frame in range(coords.shape[0]):
+                if np.isnan(coords[frame, joint]).any():
+                    left_frame, right_frame = find_nearest_frames_with_valid_data(coords, frame, joint)
+                    if left_frame is not None and right_frame is not None:
+                        x_values = np.concatenate([coords[left_frame, joint, 0], coords[right_frame, joint, 0]])
+                        y_values = np.concatenate([coords[left_frame, joint, 1], coords[right_frame, joint, 1]])
+                        frame_numbers = np.concatenate([left_frame, right_frame])
+                        sorted_indices = np.argsort(frame_numbers)
+                        frame_numbers_sorted = frame_numbers[sorted_indices]
+                        x_values_sorted = x_values[sorted_indices]
+                        y_values_sorted = y_values[sorted_indices]
+                        x_interp = PchipInterpolator(frame_numbers_sorted, x_values_sorted)
+                        y_interp = PchipInterpolator(frame_numbers_sorted, y_values_sorted)
+                        coords[frame, joint, 0] = x_interp(frame)
+                        coords[frame, joint, 1] = y_interp(frame)
+        mod_dataset.at[index, 'coordinates']  =  coords        
+    return mod_dataset
+
+
+
+
+
 
 
 if __name__=='__main__':

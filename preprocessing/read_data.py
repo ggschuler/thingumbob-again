@@ -1,26 +1,29 @@
-import numpy as np
 import pandas as pd
 import os
 from scipy.io import loadmat
-import json
+from utils import process_pmi_samples, read_from_openpose
+
 
 # load_paths carry the folder on which each dataset was stored when obtained. 
 # If folder names have changed, alter here
 load_paths = {'MINI-RGBD': r".\data\MINI-RGBD\00_25J_MRGB",
               'PMI-GMA'  : r".\data\PMI-GMA\pmi-gma\joint_points",
-              'RVI-38'   : r".\data\RVI-38\25J_RVI38_Full_Processed"}
+              'RVI-38'   : r".\data\RVI-38"}
 
 # saves the read data (.pkl file) into the designated folder
-save_paths = {'MINI-RGBD': r"thingumbob again!\data\MINI-RGBD\MINI-RGBD.pkl",
-              'PMI-GMA'  : r"thingumbob again!\data\PMI-GMA\PMI-GMA.pkl",
-              'RVI-38'   : r"thingumbob again!\data\RVI-38\RVI-38.pkl"}
+save_paths = {'MINI-RGBD': r".\data\MINI-RGBD\MINI-RGBD.pkl",
+              'PMI-GMA'  : r".\data\PMI-GMA\PMI-GMA.pkl",
+              'RVI-38'   : r".\data\RVI-38\RVI-38.pkl"}
 
 def main():
     print(f"Loading MINI-RGBD data")
     load_minirgbd()
+    print(f"Loading PMI-GMA data")
+    load_pmigma()
+    print(f'Loading RVI-38 data')
+    load_rvi38()
 
 def load_minirgbd():
-
     labels = loadmat(os.path.join(load_paths['MINI-RGBD'], 'labels.mat'))
     labels = labels['labels'][0]
     true_file_list = os.listdir(os.path.join(load_paths['MINI-RGBD'], 'MRGBD'))
@@ -30,44 +33,47 @@ def load_minirgbd():
     sample_ids = ['MINI_RGBD{}'.format(i) for i in samples]
     data = pd.DataFrame(index=sample_ids, data={'label':labels, 'coordinates':sample_coords})
     data.index.name = 'ID'
-    print(data)
+
     data.to_pickle(save_paths['MINI-RGBD'])
 
+def load_pmigma():
+    labels = pd.read_csv(os.path.join(load_paths['PMI-GMA'],'joint_points.txt'), sep=' ', names=['child_id', 'label'], index_col='child_id')
+    labels = labels.sort_index()
+    labels['ID'] = labels.index.to_series().apply(lambda x: x.split('_')[0]).map(int)
+    labels = labels.drop_duplicates(subset=['ID'], keep='last')
+    labels['full_child_ID'] = labels.index
+    labels.index = labels['ID']
+    labels = labels.drop(['ID'], axis=1)
+    keypoints_411 = os.path.join(load_paths['PMI-GMA'], '411')
+    keypoints_709 = os.path.join(load_paths['PMI-GMA'], '709')
+    coords_411 = process_pmi_samples(keypoints_411)
+    coords_709 = process_pmi_samples(keypoints_709)
+    coords = coords_411 + coords_709
+    pre_data = pd.DataFrame(coords, columns=['full_child_id', 'coordinates'])
+    pre_data['ID'] = pre_data['full_child_id'].str.split('_').str[0].astype(int)
+    pre_data['label'] = pre_data['ID'].map(labels['label'])
+    pre_data = pre_data.set_index('full_child_id')
+    pre_data = pre_data.sort_index()
+    data = pre_data[['label', 'coordinates', 'ID']]
+    data = data.rename(columns={'ID':'simpl_ID'})
+    data.index.name = 'ID'
+    data.index = ['PMIGMA_{}'.format(i) for i in data.index]
+    data.index.name = 'ID'
+    data.to_pickle(save_paths['PMI-GMA'])
 
-def read_from_openpose(file_list, custom_prefix, samples, keypoints_path):
-    """
-    This function should read all files from OpenPose, given that they are on a single folder.
+def load_rvi38():
+    labels = loadmat(os.path.join(load_paths['RVI-38'], 'RVI_38_labels.mat'))
+    labels = labels['labels'][0]
+    true_file_list = os.listdir(os.path.join(load_paths['RVI-38'], '25J_RVI38_Full_Processed'))
+    cut_file_list  = [i.split('_00000')[0] for i in true_file_list]
+    samples = [i.split('RVI_38_')[1] for i in sorted(set(cut_file_list ))]
+    sample_coords = read_from_openpose(true_file_list, 'RVI_38_{}', samples, os.path.join(load_paths['RVI-38'], '25J_RVI38_Full_Processed'))
+    data = pd.DataFrame(index=range(1, 39),  data={'label':labels, 'coordinates':sample_coords})
+    data.index = ['RVI38_{:02d}'.format(i) for i in data.index]
+    data.index.name = 'ID'
+    #save to pkl.
+    data.to_pickle(save_paths['RVI-38'])
 
-    Parameters:
-    file_list (list): List containing all name files outputted from OpenPose.
-    custom_prefix (string): The string prefixed to the OpenPose standard "Export_()_()_keypoints.json"
-    samples (list): List containing the desired samples IDs/names.
-    keypoints_path (string): The path to the folder containing the keypoints files.
-
-    Returns:
-
-    """
-    print(samples)
-    sample_coords = []
-    start = 1
-    sample = 0
-    while(start < len(file_list)):
-        coords_for_this_infant = []
-        for i in file_list[start-1:]:
-            if i.startswith(custom_prefix.format(samples[sample])):
-                with open(os.path.join(keypoints_path, i), "r") as file:
-                    data = json.load(file)
-                    coords = np.array((data['people'][0]['pose_keypoints_2d'] ))
-                    coords = coords.reshape(25,3)
-                    coords_for_this_infant.append(coords)
-                    start = start + 1
-            else:
-                sample_coords.append(coords_for_this_infant)
-                sample = sample + 1
-                break
-    sample_coords.append(coords_for_this_infant)
-    print(len(sample_coords))
-    return sample_coords
 
 
 if __name__=='__main__':

@@ -1,7 +1,7 @@
 import pandas as pd
 from read_data import save_paths
 from scipy.interpolate import PchipInterpolator
-from utils import exclude_additional_joints, find_nearest_frames_with_valid_data
+from utils import exclude_additional_joints, find_nearest_frames_with_valid_data, fill_interpolation, find_tri_h_and_line
 import os
 import numpy as np
 
@@ -9,7 +9,21 @@ joint_names = ['Nose', 'L-Shoulder', 'R-Shoulder', 'L-Elbow', 'R-Elbow', 'L-Wris
 minirgbd = pd.read_pickle(os.path.normpath(save_paths['MINI-RGBD']))
 pmigma   = pd.read_pickle(os.path.normpath(save_paths['PMI-GMA']  ))
 rvi38    = pd.read_pickle(os.path.normpath(save_paths['RVI-38']   ))
+unwanted_joints_from_pmigma = [1,2,3,4]
 unwanted_joints_from_openpose = [1,8,15,16,17,18,19,20,21,22,23,24]
+minirgbd_rvi38_connections = [
+            (0,1), (1,2), (2,3), 
+            (0,4), (4,5), (5,6), 
+            (0,7), (7,8), (8,9), 
+            (0,10), (10,11), (11,12)
+        ]
+pmigma_connections = [
+            (0, 1), (1, 3), (3, 5),
+            (0, 2), (2, 4), (4, 6),
+            (0, 7), (0, 8),
+            (7, 9), (9, 11),
+            (8, 10), (10, 12)
+        ]
 
 def main():
     datasets = [minirgbd, pmigma, rvi38]
@@ -22,9 +36,8 @@ def main():
         b = remove_zeroes(a, ref)
         c = remove_low_CIs(b)
         d = interpolate_nan_values(c)
-        #check_interpolate(dataset)
-        #rescale(dataset)
-        #pivot(dataset)
+        e = rescale(d, ref)
+        f = pivot(e)
         #rotate(dataset)
         #smooth(dataset)
         #minmax(dataset)
@@ -44,7 +57,7 @@ def standardize_joint_number(dataset, ref):
     """
     mod_dataset = dataset.copy()
     if ref == 'pmigma_output':
-        mod_dataset['coordinates'] = mod_dataset['coordinates'].apply(lambda c: exclude_additional_joints(c, [1,2,3,4]))
+        mod_dataset['coordinates'] = mod_dataset['coordinates'].apply(lambda c: exclude_additional_joints(c, unwanted_joints_from_pmigma))
     elif ref == 'openpose_output':
         mod_dataset['coordinates'] = mod_dataset['coordinates'].apply(lambda c: exclude_additional_joints(c, unwanted_joints_from_openpose))
     return mod_dataset
@@ -112,13 +125,13 @@ def remove_low_CIs(dataset):
 
 def interpolate_nan_values(dataset):
     """
-    This function remove pose data coordinates where the associated confidence score is below a threshold.
+    Does Piecewise Cubic Hermite Interpolation Polynomial for all datapoints which are NaNs in the dataset.
 
     Parameters:
     dataset (pd.dataframe): The dataframe containing the dataset's data.
     
     Returns: 
-    (pd.dataframe): The modified datataset, containing the remaining pose data for each sample in the dataset.
+    (pd.dataframe): The modified datataset, containing all samples's PCHIP-interpolated movement signals.
     """
     mod_dataset = dataset.copy()
     for index,row  in mod_dataset.iterrows():
@@ -139,13 +152,81 @@ def interpolate_nan_values(dataset):
                         y_interp = PchipInterpolator(frame_numbers_sorted, y_values_sorted)
                         coords[frame, joint, 0] = x_interp(frame)
                         coords[frame, joint, 1] = y_interp(frame)
-        mod_dataset.at[index, 'coordinates']  =  coords        
+        mod_dataset.at[index, 'coordinates']  =  coords
+    mod_dataset = fill_interpolation(mod_dataset)    
     return mod_dataset
 
+def rescale(dataset, ref):
+    """
+    Rescales the pose data to a standard reference scale, i.e. the height of 
+    the triangle formed by the nose, left hip, and right hip, in the (arbitrary) 100th frame.
 
+    Parameters:
+    dataset (pd.dataframe): The dataframe containing the dataset's data.
+    
+    ref (string): Whether the output is from a traditional OpenPose format or unique to PMI-GMA.
 
+    Returns: 
+    (pd.dataframe): The modified datataset, containing the rescaled data.
+    """ 
+    mod_dataset = dataset.copy()
+    for index, row in mod_dataset.iterrows():
+        coords = np.array(row['coordinates'])
+        if ref == 'openpose_output':
+            h, _ = find_tri_h_and_line(coords, 0, 7, 10)
+        elif ref == 'pmigma_output':
+            h, _ = find_tri_h_and_line(coords, 0, 7, 8)
+        scaled_coords = coords / h
+        mod_dataset.at[index, 'coordinates'] = scaled_coords
+    return mod_dataset
 
+def pivot(dataset):
+    """
+    Pivot the data with reference to the nose joint for every frame. As a result, the
+    nose data is 0 for all frames, and other joints' coordinates are relative to it.
 
+    Parameters:
+    dataset (pd.dataframe): The dataframe containing the dataset's data.
+
+    Returns: 
+    (pd.dataframe): The modified datataset, containing the pivoted data.
+    """ 
+    mod_dataset = dataset.copy()
+    for index, row in mod_dataset.iterrows():
+        coords = np.array(row['coordinates'])
+        pivot_coords = coords[:, 0]
+        relative_coords = coords - pivot_coords[:, None]
+        mod_dataset.at[index, 'coordinates'] = relative_coords
+    return mod_dataset
+
+def rotate(dataset, ref):
+    """
+    Rotates the pose data to a standard reference scale, i.e. the angle between the 
+    vector formed by the nose, left hip, and right hip triangle, in the (arbitrary) 
+    100th frame, and the x-axis.
+
+    Parameters:
+    dataset (pd.dataframe): The dataframe containing the dataset's data.
+    
+    ref (string): Whether the output is from a traditional OpenPose format or unique to PMI-GMA.
+
+    Returns: 
+    (pd.dataframe): The modified datataset, containing the rotated data.
+    """ 
+    mod_dataset = dataset.copy()
+    for index, row in mod_dataset.iterrows():
+        coords = np.array(row['coordinates'])
+        if ref == 'pmigma_output':
+            _, line = find_tri_h_and_line(coords, 0, 7, 8)
+        elif ref == 'openpose_output':
+            _, line = find_tri_h_and_line(coords, 0, 7, 10)
+        theta = np.arctan2(line[1], line[0])
+        trans_coords = coords
+        rotation_matrix = np.array([[np.cos(-theta), -np.sin(-theta)],
+                                    [np.sin(-theta), np.cos(-theta)]])
+        rotated_coords = np.dot(trans_coords[:,:,:2], rotation_matrix.T)
+        mod_dataset.at[index,'coordinates'] = rotated_coords
+    return mod_dataset
 
 
 if __name__=='__main__':

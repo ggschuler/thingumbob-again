@@ -1,5 +1,6 @@
 import json
 import ast
+import pandas as pd
 from tqdm import tqdm
 import numpy as np
 import os
@@ -110,3 +111,65 @@ def find_nearest_frames_with_valid_data(data, current_frame, joint):
                 break
     
     return left_frame[::-1], right_frame
+
+def fill_interpolation(dataset):
+    """
+    Forward- and Back- fill the remaining NaN values. Sometimes PCHIP can't find enough datapoints
+    to interpolate, and NaNs remains. This function deals with these few cases.
+
+    Parameters:
+    dataset (pd.dataframe): The dataframe containing the dataset's data.
+    
+    Returns: 
+    (pd.dataframe): The modified datataset, containing all samples's without NaNs.
+    """
+    mod_dataset = dataset.copy()
+    for index, row in mod_dataset.iterrows():
+        new_coords = []
+        coords = np.array(row['coordinates'])
+        for joint in range(coords.shape[1]):
+            filled_coords_x = pd.Series(coords[:,joint,0]).interpolate(method='linear', limit_direction='both')
+            filled_coords_x = filled_coords_x.ffill()
+            filled_coords_x = filled_coords_x.bfill()
+            filled_coords_y = pd.Series(coords[:,joint,1]).interpolate(method='linear', limit_direction='both')
+            filled_coords_y = filled_coords_y.ffill()
+            filled_coords_y = filled_coords_y.bfill()
+            filled_coords = np.array([filled_coords_x, filled_coords_y])
+            new_coords.append(filled_coords.T)   
+        x = np.stack(new_coords, axis=1)
+        mod_dataset.at[index, 'coordinates'] = x 
+    return mod_dataset
+
+def find_tri_h_and_line(coords, inose, ilhip, irhip):
+    """
+    Finds the height of the triangle formed by the nose, left hip, and right hip, 
+    in the (arbitrary) 100th frame; and the corresponding vector.
+
+    Parameters:
+    coords (np.array): Numpy array of coordinates. Should be (frames, joints=13, xy-coordinates=2)-shaped.
+    
+    inose (int): Index for the nose joint.
+
+    ilhip (int): Index for the left hip joint.
+
+    irhip (int): Index for the right hip joint.
+
+    Returns: 
+    (tuple): The height of the triangle formed by the 100th frame @inose, @ilhip, and @irhip coordinates,
+    and the corresponding vector
+    """ 
+    c = np.array(coords)
+    nose = c[100][inose]
+    lhip = c[100][ilhip]
+    rhip = c[100][irhip]
+    dist_n_l = np.linalg.norm(nose - lhip)
+    dist_n_r = np.linalg.norm(nose - rhip)
+    dist_hips = np.linalg.norm(lhip - rhip)
+    
+    s = (dist_n_l + dist_n_r + dist_hips) / 2
+    area = np.sqrt(s * (s - dist_n_l) * (s - dist_n_r) * (s - dist_hips))
+    h = 2 * area / dist_hips
+    lower_p = (lhip + rhip) / 2
+    upper_p = nose
+    line = [upper_p[0] - lower_p[0], upper_p[1] - lower_p[1]]
+    return h, line

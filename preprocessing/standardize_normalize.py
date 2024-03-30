@@ -7,9 +7,9 @@ from utils import exclude_additional_joints, find_nearest_frames_with_valid_data
 from read_data import save_paths
 
 joint_names = ['Nose', 'L-Shoulder', 'R-Shoulder', 'L-Elbow', 'R-Elbow', 'L-Wrist', 'R-Wrist', 'L-Hip', 'R-Hip', 'L-Knee', 'R-Knee', 'L-Feet', 'R-Feet']
-minirgbd = pd.read_pickle(os.path.normpath(save_paths['MINI-RGBD']))
-pmigma   = pd.read_pickle(os.path.normpath(save_paths['PMI-GMA']  ))
-rvi38    = pd.read_pickle(os.path.normpath(save_paths['RVI-38']   ))
+minirgbd = pd.read_pickle(os.path.join(save_paths['MINI-RGBD'], 'MINI-RGBD.pkl'))
+pmigma   = pd.read_pickle(os.path.join(save_paths['PMI-GMA']  , 'PMI-GMA.pkl'))
+rvi38    = pd.read_pickle(os.path.join(save_paths['RVI-38']   , 'RVI-38.pkl'))
 unwanted_joints_from_pmigma = [1,2,3,4]
 unwanted_joints_from_openpose = [1,8,15,16,17,18,19,20,21,22,23,24]
 minirgbd_rvi38_connections = [
@@ -28,7 +28,6 @@ pmigma_connections = [
 
 def main():
     datasets = [minirgbd, pmigma, rvi38]
-    processed_datasets = []
     for raw_dataset in datasets:
         if raw_dataset.equals(pmigma):
             ref =  'pmigma_output'
@@ -43,7 +42,9 @@ def main():
         rotated_dataset      = rotate(pivoted_dataset, ref)
         smoothed_dataset     = smooth(rotated_dataset, 5)
         normalized_dataset   = minmax(smoothed_dataset)
-        processed_datasets.append(normalized_dataset)
+        save_where = next(iter(save_paths.items()))
+        normalized_dataset.to_pickle(os.path.join(save_where[1], save_where[0]+'_processed.pkl'))
+        break
 
 def standardize_joint_number(dataset, ref):
     """
@@ -125,6 +126,7 @@ def remove_low_CIs(dataset):
     
     
     mod_data = mod_data.dropna(subset=['coordinates'])
+    return mod_data
 
 def interpolate_nan_values(dataset):
     """

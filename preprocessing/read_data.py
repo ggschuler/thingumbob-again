@@ -11,9 +11,9 @@ load_paths = {'MINI-RGBD': r".\data\MINI-RGBD\00_25J_MRGB",
               'RVI-38'   : r".\data\RVI-38"}
 
 # saves the read data (.pkl file) into the designated folder
-save_paths = {'MINI-RGBD': r".\data\MINI-RGBD\MINI-RGBD.pkl",
-              'PMI-GMA'  : r".\data\PMI-GMA\PMI-GMA.pkl",
-              'RVI-38'   : r".\data\RVI-38\RVI-38.pkl"}
+save_paths = {'MINI-RGBD': r".\data\MINI-RGBD",
+              'PMI-GMA'  : r".\data\PMI-GMA",
+              'RVI-38'   : r".\data\RVI-38"}
 
 def main():
     print(f"Loading MINI-RGBD data")
@@ -34,7 +34,7 @@ def load_minirgbd():
     data = pd.DataFrame(index=sample_ids, data={'label':labels, 'coordinates':sample_coords})
     data.index.name = 'ID'
 
-    data.to_pickle(save_paths['MINI-RGBD'])
+    data.to_pickle(os.path.join(save_paths['MINI-RGBD'], 'MINI-RGBD.pkl'))
 
 def load_pmigma():
     labels = pd.read_csv(os.path.join(load_paths['PMI-GMA'],'joint_points.txt'), sep=' ', names=['child_id', 'label'], index_col='child_id')
@@ -59,7 +59,7 @@ def load_pmigma():
     data.index.name = 'ID'
     data.index = ['PMIGMA_{}'.format(i) for i in data.index]
     data.index.name = 'ID'
-    data.to_pickle(save_paths['PMI-GMA'])
+    data.to_pickle(os.path.join(save_paths['PMI-GMA'], 'PMI-GMA.pkl'))
 
 def load_rvi38():
     labels = loadmat(os.path.join(load_paths['RVI-38'], 'RVI_38_labels.mat'))
@@ -72,8 +72,7 @@ def load_rvi38():
     data.index = ['RVI38_{:02d}'.format(i) for i in data.index]
     data.index.name = 'ID'
     #save to pkl.
-    data.to_pickle(save_paths['RVI-38'])
-
+    data.to_pickle(os.path.join(save_paths['RVI-38'], 'RVI-38.pkl'))
 
 
 if __name__=='__main__':

@@ -159,9 +159,9 @@ def find_tri_h_and_line(coords, inose, ilhip, irhip):
     and the corresponding vector
     """ 
     c = np.array(coords)
-    nose = c[100][inose]
-    lhip = c[100][ilhip]
-    rhip = c[100][irhip]
+    nose = c[0][inose]
+    lhip = c[0][ilhip]
+    rhip = c[0][irhip]
     dist_n_l = np.linalg.norm(nose - lhip)
     dist_n_r = np.linalg.norm(nose - rhip)
     dist_hips = np.linalg.norm(lhip - rhip)

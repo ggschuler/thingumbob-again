@@ -2,6 +2,8 @@ import numpy as np
 import math
 import pandas as pd
 import os
+import warnings
+warnings.filterwarnings("ignore", message="The frame.append method is deprecated and will be removed from pandas in a future version.", category=FutureWarning)
 
 class Load:
 
@@ -13,7 +15,12 @@ class Load:
 
     def load_data(self):
         """
-        Loads the datasets as coordinate and labels lists.
+        Loads the datasets as coordinate and label lists. If more datasets would be added, declare their 
+        path and include it in the @datasets variable in the body of the function. Change @load_paths and
+        @save_paths accordingly, and name the value with the dataset intended key (string).
+
+        Returns:
+        (dictionary) Name - Dataframe pair of each extracted dataset 
         """
         minirgbd = pd.read_pickle(os.path.join(self.save_paths['MINI-RGBD'], 'MINI-RGBD_processed.pkl'))
         pmigma   = pd.read_pickle(os.path.join(self.save_paths['PMI-GMA']  , 'PMI-GMA_processed.pkl'))
@@ -28,7 +35,8 @@ class Load:
             for _, row in processed_dataset.iterrows():
                 coords.append(row['coordinates'])
                 labels.append(np.repeat(row['label'], row['coordinates'].shape[0]))
-            self.data[next(datasets_iterator)[0]] = pd.DataFrame({processed_dataset.columns[0]:coords, processed_dataset.columns[1]:labels},index=processed_dataset.index)
+            self.data[next(datasets_iterator)[0]] = pd.DataFrame({processed_dataset.columns[1]:coords, processed_dataset.columns[0]:labels},index=processed_dataset.index)
+        return self.data
 
     def augment_rvi(self, rvi_data):
         """

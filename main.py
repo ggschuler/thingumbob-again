@@ -1,6 +1,7 @@
 from preprocessing.read_data import Read
 from preprocessing.standardize_normalize import Process
 from model.data_loading import Load
+from model.feature_extraction import Extract
 
 def main():
     # load_paths carry the folder on which each dataset was stored when obtained. 
@@ -17,12 +18,14 @@ def main():
     reader = Read(load_paths, save_paths)
     processer = Process(load_paths, save_paths)
     loader = Load(load_paths, save_paths)
-    
-
+   
     #reader.read_data()
     #processer.process_data()
-    loader.load_data()
 
+    data = loader.load_data()
+
+    feature_extractor = Extract(data, window_size=30, stride_size=30)
+    features = feature_extractor.extract_for_each()
 
 if __name__=='__main__':
     main()

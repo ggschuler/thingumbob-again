@@ -24,8 +24,8 @@ def main():
 
     data = loader.load_data()
 
-    feature_extractor = Extract(data, window_size=30, stride_size=30)
-    features = feature_extractor.extract_for_each()
+    feature_extractor = Extract(data, window_size=30, stride_size=30, num_bins=10)
+    features = feature_extractor.extract_for_each(do_histograms=True)
 
 if __name__=='__main__':
     main()

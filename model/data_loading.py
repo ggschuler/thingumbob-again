@@ -6,7 +6,9 @@ import warnings
 warnings.filterwarnings("ignore", message="The frame.append method is deprecated and will be removed from pandas in a future version.", category=FutureWarning)
 
 class Load:
-
+    """
+    Responsible for loading processed .pkl files into coordinate and label arrays for subsequent feature extraction.
+    """
     def __init__(self, load_paths, save_paths):
         self.load_paths = load_paths
         self.save_paths = save_paths
@@ -20,7 +22,7 @@ class Load:
         @save_paths accordingly, and name the value with the dataset intended key (string).
 
         Returns:
-        (dictionary) Name - Dataframe pair of each extracted dataset 
+        (dictionary): Name - Dataframe pair of each extracted dataset 
         """
         minirgbd = pd.read_pickle(os.path.join(self.save_paths['MINI-RGBD'], 'MINI-RGBD_processed.pkl'))
         pmigma   = pd.read_pickle(os.path.join(self.save_paths['PMI-GMA']  , 'PMI-GMA_processed.pkl'))
@@ -43,10 +45,10 @@ class Load:
         Performs data augmentation on the RVI-38 dataset, increasing samples from 38 to 124.
 
         Parameters:
-        rvi_data (pd.dataframe) The dataframe containing the relevant dataset.
+        rvi_data (pd.dataframe): The dataframe containing the relevant dataset.
 
         Returns:
-        (pd.dataframe) The augmented dataset, corresponding to a 2-column, 124 rows Dataframe.
+        (pd.dataframe): The augmented dataset, corresponding to a 2-column, 124 rows Dataframe.
         """
         desired_length = 999
         segments_rvi_data = pd.DataFrame(columns=['label','coordinates'])

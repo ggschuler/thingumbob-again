@@ -4,7 +4,9 @@ from scipy.io import loadmat
 from preprocessing.processing_utils import process_pmi_samples, read_from_openpose
 
 class Read:
-
+    """
+    Reads data from file. Works with unaltered MINI-RGBD, PMI-GMA, and RVI-38 folders as obtained with authors in May 2023.
+    """
     def __init__(self, load_paths, save_paths):
         self.load_paths = load_paths
         self.save_paths = save_paths

@@ -6,7 +6,19 @@ from scipy.interpolate import PchipInterpolator
 from scipy.ndimage import median_filter
 
 class Process:
-
+    """
+    Passes the data through pre-processing steps, including inter-datasets standardization and inner-data normalization.
+    Steps are:
+        1. Standardize number of joints to 13 (@func: standardize_joint_number).
+        2. Filter movement signal for removing zero'ed and low confidence score values (@func: remove_zeroes, @func: remove_low_CIs).
+        3. Interpolate on relevant signal gaps using Piecewise Cubic Hermite Interpolation Polynomial (@func: interpolate_nan_values).
+        4. Re-scale data with reference to standard vector length from skeleton features (@func: rescale).
+        5. Pivot data with reference to Nose joint (@func: pivot).
+        6. Rotate data with reference to standard angle from skeleton features (@func: rotate).
+        7. Smooth movement signal using rolling-window median filter (@func: smooth).
+        8. Normalize with MinMax method (@func: minmax).
+        
+    """
     def __init__(self, load_paths, save_paths):
         self.load_paths = load_paths
         self.save_paths = save_paths
@@ -28,6 +40,9 @@ class Process:
         ]
 
     def process_data(self):
+        """
+        Performs all pre-processing steps on datasets.
+        """
         minirgbd = pd.read_pickle(os.path.join(self.save_paths['MINI-RGBD'], 'MINI-RGBD.pkl'))
         pmigma   = pd.read_pickle(os.path.join(self.save_paths['PMI-GMA']  , 'PMI-GMA.pkl'))
         rvi38    = pd.read_pickle(os.path.join(self.save_paths['RVI-38']   , 'RVI-38.pkl'))

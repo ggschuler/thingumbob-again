@@ -26,6 +26,9 @@ def main():
 
     feature_extractor = Extract(data, window_size=30, stride_size=30, num_bins=10)
     features = feature_extractor.extract_for_each(do_histograms=True)
+    a = features['MINI-RGBD']
+    print(a.iloc[0,0].shape)
+
 
 if __name__=='__main__':
     main()

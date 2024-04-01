@@ -2,13 +2,13 @@ import torch
 import torch.nn as nn
 from torch import nn
 import torch.nn.functional as F
-from graph import Graph
+from model.graph import Graph
 
 class msstgcn(nn.Module):
     """
     Multi-stage spatio-temporal graph convolutional model implementation.
     """
-    def __init__(self, dil, num_layers_R, num_R, num_f_maps, dim, num_classes, connections, pool):
+    def __init__(self, dil, num_f_maps, dim, num_classes, connections, pool):
         super(msstgcn, self).__init__()
         self.stream = SpatialTemporalGraph(connections=connections, pool=pool, filters=num_f_maps, in_channels=dim, num_class=num_classes, dil=dil,)
     def forward(self, x, mask):

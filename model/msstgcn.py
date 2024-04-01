@@ -5,6 +5,9 @@ import torch.nn.functional as F
 from graph import Graph
 
 class msstgcn(nn.Module):
+    """
+    Multi-stage spatio-temporal graph convolutional model implementation.
+    """
     def __init__(self, dil, num_layers_R, num_R, num_f_maps, dim, num_classes, connections, pool):
         super(msstgcn, self).__init__()
         self.stream = SpatialTemporalGraph(connections=connections, pool=pool, filters=num_f_maps, in_channels=dim, num_class=num_classes, dil=dil,)
@@ -15,7 +18,9 @@ class msstgcn(nn.Module):
         return probabilities
 
 class SpatialTemporalGraph(nn.Module):
-
+    """
+    Performs both spatial and temporal (via ST-GCNs) convolution.
+    """
     def __init__(self, connections, pool, filters, in_channels=2, num_class=2, dil=[1,2,4,8,16,32,64,128,256,512,1024,2048], edge_importance_weighting=False, **kwargs):
         super(SpatialTemporalGraph, self).__init__()
         graph_args = {'connections':connections, 'layout':'minirgdb', 'strategy':'uniform'}
@@ -67,6 +72,9 @@ class SpatialTemporalGraph(nn.Module):
         return out
 
 class st_gcn(nn.Module):
+    """
+    Spatio-temporal graph convolutional network implementation.
+    """
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, A=None, dilation=1, residual=True):
         super(st_gcn, self).__init__()
         assert len(kernel_size) == 2
@@ -100,6 +108,9 @@ class st_gcn(nn.Module):
         return x
 
 class ConvTempGraph(nn.Module):
+    """
+    Temporal convolution module.
+    """
     def __init__(self, in_channels, out_channels, kernel_size, tkernel_size=1, t_stride=1, t_padding=0, t_dilation=1, bias=True):
         super().__init__()
         self.kernel_size = kernel_size
@@ -117,6 +128,9 @@ class ConvTempGraph(nn.Module):
         return x.contiguous(), A
 
 class EarlyStopper:
+    """
+    An early stopper for dealing with potential overfit of model.
+    """
     def __init__(self, patience=1, min_delta=0):
         self.patience = patience
         self.min_delta = min_delta

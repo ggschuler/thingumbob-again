@@ -1,6 +1,9 @@
 import numpy as np
 
 class Graph():
+    """
+    Creates the graph representation of each sample from the datasets
+    """
     def __init__(self, connections, layout='minirgbd', strategy='distance', max_hop=1, dilation=1):
         self.max_hop = max_hop
         self.dilation = dilation

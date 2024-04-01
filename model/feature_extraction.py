@@ -4,7 +4,7 @@ import pandas as pd
 class Extract:
     """
     Performs all tasks related to feature extraction, from displacement and 
-    orientation scalars to histogram-encoding and graph representation
+    orientation scalars to histogram-encoding.
     """
     def __init__(self, data, window_size, stride_size, do_histograms, num_bins):
         self.data = data

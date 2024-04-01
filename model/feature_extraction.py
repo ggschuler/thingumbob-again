@@ -1,23 +1,52 @@
 import numpy as np
+import pandas as pd
 
 class Extract:
     """
     Performs all tasks related to feature extraction, from displacement and 
-    orientation scalars to histogram-encoding and graph representation"""
-    def __init__(self, data, window_size, stride_size, num_bins):
+    orientation scalars to histogram-encoding and graph representation
+    """
+    def __init__(self, data, window_size, stride_size, do_histograms, num_bins):
         self.data = data
         self.window_size = window_size
         self.stride_size = stride_size
+        self.do_histograms = do_histograms
         self.num_bins = num_bins
-        
         self.features = self.data.copy()
 
-    def extract_for_each(self, do_histograms):
+    def generate_featurespace(self, setup):
+        """
+        Generates the feature space for the selected setup. Standardly, the available setups are:
+            - MINI-RGBD
+            - RVI-38
+            - PMI-GMA
+            - MINI+RVI+PMI
+
+        Parameters:
+        setup (list): List of strings containing the names of the datasets, as named in @save_paths.
+
+        Returns:
+        (pd.dataframe): a Dataframe with the resulting features and labels of the setup. For example, by inputing 
+        ['MINI-RGBD', 'RVI-38', 'PMI-GMA'] the resulting dataframe would contain 12+124+1120=1256 samples
+        """
+        all_features = []
+        for dataset in setup:
+            features = self.extract_for_each()[dataset]
+            features_df = pd.DataFrame({'features':features['coordinates'], 'labels':features['label'].apply(lambda x: x[:self.num_bins])})
+            features_df['features'] = features_df['features'].apply(lambda x: np.array(x).transpose(1, 0, 2))
+            all_features.append(features_df)
+        
+        return pd.DataFrame(np.concatenate([i for i in all_features], axis=0), columns=['features', 'labels'])
+
+    def extract_for_each(self):
         """
         Loops over datasets and populates a new dictionary with the extracted features.
+
+        Returns:
+        (dictionary): A dictionary whose keys are the datasets' names and values are their corresponding Dataframes.
         """
         for dataset_name, dataset in self.data.items():
-            extracted_features = self.get_features(dataset, do_histograms)
+            extracted_features = self.get_features(dataset, self.do_histograms)
             self.features[dataset_name] = extracted_features
         return self.features
 
@@ -75,7 +104,6 @@ class Extract:
         histogram_encoded_matrix = np.stack(histogram_encoded_features, axis=0)
         histogram_encoded_matrix = histogram_encoded_matrix.T
         return histogram_encoded_matrix
-
 
     def get_features(self, dataset, do_histograms):
         """
@@ -150,4 +178,3 @@ class Extract:
           motion_angle = motion_angle.T
           final_sample[start // self.stride_size, :, :] = motion_angle
         return final_sample
-

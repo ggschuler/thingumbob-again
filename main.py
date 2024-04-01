@@ -24,11 +24,10 @@ def main():
 
     data = loader.load_data()
 
-    feature_extractor = Extract(data, window_size=30, stride_size=30, num_bins=10)
-    features = feature_extractor.extract_for_each(do_histograms=True)
-    a = features['MINI-RGBD']
-    print(a.iloc[0,0].shape)
+    feature_extractor = Extract(data, window_size=30, stride_size=30, do_histograms=True, num_bins=16)
+    features = feature_extractor.generate_featurespace(['MINI-RGBD','RVI-38','PMI-GMA'])
 
+    
 
 if __name__=='__main__':
     main()
